@@ -1,4 +1,6 @@
 fastapi
 uvicorn[standard]
+sqlalchemy
+pydantic
 python-multipart
-"python-socketio[client]"
+python-socketio[client]
