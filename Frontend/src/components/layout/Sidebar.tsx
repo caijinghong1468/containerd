@@ -37,6 +37,7 @@ const Sidebar: React.FC = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   // 處理搜尋 - 只搜尋標題
   const filteredNotes = notes.filter((note) => 
@@ -59,20 +60,52 @@ const Sidebar: React.FC = () => {
   };
 
   // 處理新建筆記
-  const handleCreateNote = () => {
-    const newNote = {
-      id: uuidv4(),
-      title: newNoteTitle || '未命名筆記',
-      content: '',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      tags: [],
-    };
-    
-    addNote(newNote);
-    setCurrentNote(newNote);
-    setNewNoteTitle('');
-    onClose();
+  const handleCreateNote = async () => {
+    try {
+      setIsCreating(true);
+      
+      // 調用後端 API 創建筆記
+      const response = await fetch('http://localhost:8000/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: newNoteTitle || '未命名筆記'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('創建筆記失敗');
+      }
+
+      const newNote = await response.json();
+      
+      // 更新前端狀態
+      addNote(newNote);
+      setCurrentNote(newNote);
+      setNewNoteTitle('');
+      onClose();
+
+      // 顯示成功提示
+      toast({
+        title: '筆記已創建',
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error('創建筆記錯誤:', error);
+      toast({
+        title: '創建筆記失敗',
+        description: '請稍後再試',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -148,11 +181,21 @@ const Sidebar: React.FC = () => {
               value={newNoteTitle}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewNoteTitle(e.target.value)}
               onKeyPress={(e: React.KeyboardEvent) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !isCreating) {
                   handleCreateNote();
                 }
               }}
             />
+            <Button
+              mt={4}
+              colorScheme="blue"
+              onClick={handleCreateNote}
+              isLoading={isCreating}
+              loadingText="創建中..."
+              width="100%"
+            >
+              創建筆記
+            </Button>
           </ModalBody>
         </ModalContent>
       </Modal>
