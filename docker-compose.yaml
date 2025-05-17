@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: myapp-backend
+    volumes:
+      - ./Backend:/app
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: myapp-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped # if you always want to start the frontend container automatically, use the restart: always
+
+volumes:
+  frontend_node_modules:
