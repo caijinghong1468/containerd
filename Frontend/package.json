@@ -1,0 +1,39 @@
+{
+  "name": "containerd_multinotes",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@chakra-ui/icons": "^2.2.4",
+    "@chakra-ui/next-js": "^2.1.5",
+    "@chakra-ui/react": "^2.8.2",
+    "@chakra-ui/system": "^2.6.2",
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@types/uuid": "^10.0.0",
+    "@uiw/react-md-editor": "^4.0.6",
+    "framer-motion": "^10.18.0",
+    "next": "^14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^11.1.0",
+    "zustand": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "eslint": "^9.26.0",
+    "eslint-config-next": "^15.3.2",
+    "typescript": "^5.8.3"
+  }
+}
