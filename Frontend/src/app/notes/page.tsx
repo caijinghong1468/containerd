@@ -1,64 +1,122 @@
 'use client';
 
-import { Box, Container, Flex, Center, VStack, Text, Button } from '@chakra-ui/react';
-import Sidebar from '@/components/layout/Sidebar';
-import NoteEditor from '@/components/notes/NoteEditor';
-import { useStore } from '@/store/useStore';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useNotes } from '@/contexts/NotesContext';
+import {
+  Box,
+  Container,
+  Flex,
+  Heading,
+  Button,
+  useToast,
+  IconButton,
+  Text,
+  VStack,
+  HStack,
+  useColorModeValue,
+} from '@chakra-ui/react';
+import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
 
-// 筆記頁面組件
 export default function NotesPage() {
   const router = useRouter();
-  const user = useStore((state) => state.user);
-  const notes = useStore((state) => state.notes);
-  const currentNote = useStore((state) => state.currentNote);
-  const addNote = useStore((state) => state.addNote);
-  const setCurrentNote = useStore((state) => state.setCurrentNote);
+  const { notes, createNote, deleteNote } = useNotes();
+  const [isCreating, setIsCreating] = useState(false);
+  const toast = useToast();
 
-  // 檢查是否已登入
-  useEffect(() => {
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
-      router.push('/');
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
+
+  const handleCreateNote = async () => {
+    try {
+      setIsCreating(true);
+      const newNote = await createNote('新筆記');
+      router.push(`/notes/${newNote.id}`);
+    } catch (error) {
+      toast({
+        title: '創建筆記失敗',
+        description: '請稍後再試',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsCreating(false);
     }
-  }, [router]);
+  };
 
-  // 處理新建筆記
-  const handleCreateNote = () => {
-    const newNote = {
-      id: uuidv4(),
-      title: '未命名筆記',
-      content: '',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      tags: [],
-    };
-    
-    addNote(newNote);
-    setCurrentNote(newNote);
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      await deleteNote(noteId);
+      toast({
+        title: '筆記已刪除',
+        status: 'success',
+        duration: 2000,
+      });
+    } catch (error) {
+      toast({
+        title: '刪除筆記失敗',
+        description: '請稍後再試',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   return (
-    <Container maxW="container.xl" h="100vh" p={0}>
-      <Flex h="100%">
-        <Sidebar />
-        <Box flex="1" p={4}>
-          {currentNote ? (
-            <NoteEditor noteId={currentNote.id} />
-          ) : (
-            <Center h="100%">
-              <VStack spacing={4}>
-                <Text fontSize="xl">請選擇或建立一個筆記</Text>
-                <Button colorScheme="blue" onClick={handleCreateNote}>
-                  建立新筆記
-                </Button>
-              </VStack>
-            </Center>
-          )}
-        </Box>
+    <Container maxW="container.lg" py={8}>
+      <Flex mb={6} justify="space-between" align="center">
+        <Heading size="lg">我的筆記</Heading>
+        <Button
+          leftIcon={<AddIcon />}
+          colorScheme="blue"
+          onClick={handleCreateNote}
+          isLoading={isCreating}
+        >
+          新增筆記
+        </Button>
       </Flex>
+
+      <VStack spacing={4} align="stretch">
+        {notes.map((note) => (
+          <Box
+            key={note.id}
+            p={4}
+            bg={bgColor}
+            borderRadius="lg"
+            boxShadow="sm"
+            borderWidth={1}
+            borderColor={borderColor}
+            _hover={{ boxShadow: 'md' }}
+            cursor="pointer"
+            onClick={() => router.push(`/notes/${note.id}`)}
+          >
+            <Flex justify="space-between" align="center">
+              <Box flex={1}>
+                <Heading size="md" mb={2}>
+                  {note.title}
+                </Heading>
+                <Text color="gray.500" fontSize="sm">
+                  最後更新：{new Date(note.updated_at).toLocaleString()}
+                </Text>
+              </Box>
+              <HStack spacing={2}>
+                <IconButton
+                  aria-label="刪除筆記"
+                  icon={<DeleteIcon />}
+                  colorScheme="red"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteNote(note.id);
+                  }}
+                />
+              </HStack>
+            </Flex>
+          </Box>
+        ))}
+      </VStack>
     </Container>
   );
 } 

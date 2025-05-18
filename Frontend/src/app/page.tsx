@@ -1,34 +1,78 @@
 'use client';
 
-import { Box, Container, Heading, VStack } from '@chakra-ui/react';
-import LoginButton from '@/components/auth/LoginButton';
-import { useStore } from '@/store/useStore';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import {
+  Box,
+  Button,
+  Container,
+  Heading,
+  VStack,
+  useToast,
+  Text,
+} from '@chakra-ui/react';
+import { v4 as uuidv4 } from 'uuid';
 
-// 主頁面組件
 export default function Home() {
   const router = useRouter();
-  const user = useStore((state) => state.user);
+  const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
 
-  // 檢查使用者是否已登入
-  useEffect(() => {
-    const userId = localStorage.getItem('userId');
-    if (userId) {
+  const handleLogin = async () => {
+    setIsLoading(true);
+    try {
+      // 生成一個隨機的用戶 ID
+      const userId = uuidv4();
+      localStorage.setItem('userId', userId);
       router.push('/notes');
+    } catch (error) {
+      console.error('登入失敗:', error);
+      toast({
+        title: '登入失敗',
+        description: '請稍後再試',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }, [router]);
+  };
 
   return (
-    <Container maxW="container.xl" h="100vh">
-      <VStack
-        spacing={8}
-        justify="center"
-        align="center"
-        h="100%"
-      >
-        <Heading size="2xl">多人筆記協作系統</Heading>
-        <LoginButton />
+    <Container maxW="container.sm" py={20}>
+      <VStack spacing={8} align="center">
+        <Heading
+          as="h1"
+          size="2xl"
+          bgGradient="linear(to-r, blue.400, blue.600)"
+          bgClip="text"
+          fontWeight="extrabold"
+        >
+          多人筆記協作系統
+        </Heading>
+        
+        <Text fontSize="lg" color="gray.600" textAlign="center">
+          一個簡單、高效的多人協作筆記平台
+        </Text>
+
+        <Button
+          size="lg"
+          colorScheme="blue"
+          onClick={handleLogin}
+          isLoading={isLoading}
+          loadingText="登入中..."
+          px={8}
+          py={6}
+          fontSize="lg"
+          _hover={{
+            transform: 'translateY(-2px)',
+            boxShadow: 'lg',
+          }}
+          transition="all 0.2s"
+        >
+          開始使用
+        </Button>
       </VStack>
     </Container>
   );

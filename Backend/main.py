@@ -1,18 +1,16 @@
-import socketio
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import redis.asyncio as redis
-import uuid
+from pydantic import BaseModel
+import socketio
+import redis
 import json
-from model.note import NoteCreate
+import uuid
+from datetime import datetime
+from typing import List
 
 app = FastAPI()
 
-r = redis.Redis(decode_responses=True)
-
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
-socket_app = socketio.ASGIApp(sio, app)
-
+# 配置 CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,52 +19,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#提供前端創建一次性user
-@app.post("/user")
-async def create_user():
-    user_id = str(uuid.uuid4())
-    #user_key = f"user:{user_id}"
-    #await r.set(user_key, json.dumps(user_data))
-    return {"user_id": user_id}
+# 初始化 Socket.IO
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+socket_app = socketio.ASGIApp(sio, app)
 
+# Redis 連接
+try:
+    redis_client = redis.Redis(
+        host='redis',
+        port=6379,
+        decode_responses=True
+    )
+except Exception as e:
+    print(f"Redis 連接失敗: {e}")
+    raise
 
-#提供前端使用者傳入title創建筆記，並回傳筆記 ID  
-@app.post("/notes")
-async def create_note(req: NoteCreate):
-    note_id = str(uuid.uuid4())
-    note_data = {
-        "id": note_id,
-        "title": req.title,
-        "content": ""
-    }
-    note_key = f"note:{note_id}"
-    await r.set(note_key , json.dumps(note_data))
-    # 回傳整份 note 給前端
-    return note_data
+# 模型定義
+class NoteCreate(BaseModel):
+    title: str
 
-#提供前端使用者取得所有筆記以顯示在列表中
-@app.get("/notes/list")
-async def list_notes():
-    # 取得所有 key 並取出所有筆記（回傳 id 和 title）
-    notes = []
-    async for key in r.scan_iter(match="note:*"):
-        raw = await r.get(key)
-        if raw:
-            note = json.loads(raw)
-            notes.append({
-                "id": note["id"],
-                "title": note["title"]
-            })
+class NoteUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
 
-    return notes 
+class Note(BaseModel):
+    id: str
+    title: str
+    content: str
+    created_at: str
+    updated_at: str
 
-#提供前端使用者取得指定筆記
-@app.get("/notes/{note_id}")
-async def get_note(note_id: str):
-    note_key = f"note:{note_id}"
-    data = await r.get(note_key)
-    return json.loads(data) if data else {}
-
+# Socket.IO 事件處理
 @sio.event
 async def connect(sid, environ):
     print(f"Client connected: {sid}")
@@ -75,26 +58,102 @@ async def connect(sid, environ):
 async def disconnect(sid):
     print(f"Client disconnected: {sid}")
 
-@sio.on("join_note")
-async def join_note(sid, data):
-    room = data["note_id"]
-    await sio.enter_room(sid, room)
-    print(f"{sid} joined room {room}")
+@sio.event
+async def join(sid, data):
+    note_id = data['note_id']
+    sio.enter_room(sid, f"note_{note_id}")
+    print(f"Client {sid} joined note {note_id}")
 
-@sio.on("update_note")
-async def update_note(sid, data):
-    note_id = data["note_id"]
-    content = data["content"]
-    title = data.get("title", "Untitled Note")
+@sio.event
+async def leave(sid, data):
+    note_id = data['note_id']
+    sio.leave_room(sid, f"note_{note_id}")
+    print(f"Client {sid} left note {note_id}")
 
-    # Last Write Wins：直接覆蓋
-    new_data = {
-        "id": note_id,
+@sio.event
+async def update(sid, data):
+    note_id = data['note_id']
+    title = data['title']
+    content = data['content']
+    
+    # 更新 Redis
+    note_key = f"note:{note_id}"
+    now = datetime.utcnow().isoformat()
+    update_data = {
+        "title": title,
+        "content": content,
+        "updated_at": now
+    }
+    redis_client.hset(note_key, mapping=update_data)
+    
+    # 廣播更新
+    await sio.emit('note_update', {
+        "note_id": note_id,
         "title": title,
         "content": content
-    }
-    note_key = f"note:{note_id}"
-    await r.set(note_key, json.dumps(new_data))
+    }, room=f"note_{note_id}")
+
+# 筆記相關路由
+@app.post("/api/notes", response_model=Note)
+async def create_note(note: NoteCreate):
+    # 獲取當前最大的筆記 ID
+    max_id = 0
+    for key in redis_client.scan_iter("note:*"):
+        note_id = int(key.split(":")[1])
+        max_id = max(max_id, note_id)
     
-    # 廣播給所有用戶（含自己）
-    await sio.emit("note_updated", new_data, room=note_id)
+    note_id = str(max_id + 1)
+    now = datetime.utcnow().isoformat()
+    note_data = {
+        "id": note_id,
+        "title": note.title,
+        "content": "",
+        "created_at": now,
+        "updated_at": now
+    }
+    redis_client.hset(f"note:{note_id}", mapping=note_data)
+    return Note(**note_data)
+
+@app.put("/api/notes/{note_id}", response_model=Note)
+async def update_note(note_id: str, note_update: NoteUpdate):
+    note_key = f"note:{note_id}"
+    if not redis_client.exists(note_key):
+        raise HTTPException(status_code=404, detail="筆記不存在")
+    
+    note_data = redis_client.hgetall(note_key)
+    now = datetime.utcnow().isoformat()
+    
+    update_data = {}
+    if note_update.title is not None:
+        update_data["title"] = note_update.title
+    if note_update.content is not None:
+        update_data["content"] = note_update.content
+    update_data["updated_at"] = now
+    
+    redis_client.hset(note_key, mapping=update_data)
+    
+    # 更新本地數據
+    note_data.update(update_data)
+    return Note(**note_data)
+
+@app.get("/api/notes", response_model=List[Note])
+async def list_notes():
+    notes = []
+    for key in redis_client.scan_iter("note:*"):
+        note_data = redis_client.hgetall(key)
+        notes.append(Note(**note_data))
+    return sorted(notes, key=lambda x: int(x.id))
+
+@app.get("/api/notes/{note_id}", response_model=Note)
+async def get_note(note_id: str):
+    note_data = redis_client.hgetall(f"note:{note_id}")
+    if not note_data:
+        raise HTTPException(status_code=404, detail="筆記不存在")
+    return Note(**note_data)
+
+@app.delete("/api/notes/{note_id}")
+async def delete_note(note_id: str):
+    if not redis_client.exists(f"note:{note_id}"):
+        raise HTTPException(status_code=404, detail="筆記不存在")
+    redis_client.delete(f"note:{note_id}")
+    return {"message": "筆記已刪除"}

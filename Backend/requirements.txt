@@ -3,3 +3,4 @@ uvicorn[standard]
 python-multipart
 python-socketio[client]
 redis>=4.5.0
+python-socketio[asyncio_client]

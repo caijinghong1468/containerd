@@ -31,7 +31,7 @@ const NoteEditor: React.FC<{ noteId?: string }> = ({ noteId }) => {
       updateNote({
         ...currentNote,
         title: newTitle,
-        updatedAt: new Date(),
+        updated_at: new Date().toISOString(),
       });
     }
   };
@@ -45,7 +45,7 @@ const NoteEditor: React.FC<{ noteId?: string }> = ({ noteId }) => {
         updateNote({
           ...currentNote,
           content: value,
-          updatedAt: new Date(),
+          updated_at: new Date().toISOString(),
         });
       }
     }

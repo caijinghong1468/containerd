@@ -3,10 +3,8 @@ export interface Note {
   id: string;
   title: string;
   content: string;
-  createdAt: Date;
-  updatedAt: Date;
-  folderId?: string;
-  tags: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 // 資料夾的型別定義
@@ -29,4 +27,10 @@ export interface SearchResult {
   content: string;
   matchType: 'title' | 'content';
   matchPosition: number;
+}
+
+// 使用者的型別定義
+export interface User {
+  id: string;
+  username: string;
 } 
