@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from model.note import NoteCreate, NoteUpdate, Note
+from motor.motor_asyncio import AsyncIOMotorClient
 import socketio
 import redis
 import json
@@ -34,20 +35,10 @@ except Exception as e:
     print(f"Redis 連接失敗: {e}")
     raise
 
-# 模型定義
-class NoteCreate(BaseModel):
-    title: str
-
-class NoteUpdate(BaseModel):
-    title: str | None = None
-    content: str | None = None
-
-class Note(BaseModel):
-    id: str
-    title: str
-    content: str
-    created_at: str
-    updated_at: str
+# MongoDB 連接
+mongo_client = AsyncIOMotorClient("mongodb://localhost:27017")
+db = mongo_client["note_db"]
+notes_collection = db["notes"]
 
 # Socket.IO 事件處理
 @sio.event
@@ -60,49 +51,43 @@ async def disconnect(sid):
 
 @sio.event
 async def join(sid, data):
-    note_id = data['note_id']
-    sio.enter_room(sid, f"note_{note_id}")
-    print(f"Client {sid} joined note {note_id}")
+    room = data['note_id']
+    sio.enter_room(sid, room )
+    print(f"Client {sid} joined note {room }")
 
 @sio.event
 async def leave(sid, data):
-    note_id = data['note_id']
-    sio.leave_room(sid, f"note_{note_id}")
-    print(f"Client {sid} left note {note_id}")
+    room = data['note_id']
+    sio.leave_room(sid, room )
+    print(f"Client {sid} left note {room}")
 
-@sio.event
+@sio.on("update_note")
 async def update(sid, data):
     note_id = data['note_id']
-    title = data['title']
+    title = data.get("title", "Untitled Note")
     content = data['content']
-    
+    create_at = data['created_at']
+    now = datetime.utcnow().isoformat()
+
     # 更新 Redis
     note_key = f"note:{note_id}"
-    now = datetime.utcnow().isoformat()
-    update_data = {
+    new_data = {
+        "id": note_id,
         "title": title,
         "content": content,
+        "created_at": create_at,
         "updated_at": now
     }
-    redis_client.hset(note_key, mapping=update_data)
+    # Redis 覆蓋（Last Write Wins）
+    await redis_client.set(note_key, json.dumps(new_data))
     
     # 廣播更新
-    await sio.emit('note_update', {
-        "note_id": note_id,
-        "title": title,
-        "content": content
-    }, room=f"note_{note_id}")
+    await sio.emit('note_update', new_data, room=note_id)
 
-# 筆記相關路由
-@app.post("/api/notes", response_model=Note)
+#提供前端使用者傳入title創建筆記，並回傳筆記 ID  
+@app.post("/api/notes")
 async def create_note(note: NoteCreate):
-    # 獲取當前最大的筆記 ID
-    max_id = 0
-    for key in redis_client.scan_iter("note:*"):
-        note_id = int(key.split(":")[1])
-        max_id = max(max_id, note_id)
-    
-    note_id = str(max_id + 1)
+    note_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
     note_data = {
         "id": note_id,
@@ -111,49 +96,68 @@ async def create_note(note: NoteCreate):
         "created_at": now,
         "updated_at": now
     }
-    redis_client.hset(f"note:{note_id}", mapping=note_data)
-    return Note(**note_data)
-
-@app.put("/api/notes/{note_id}", response_model=Note)
-async def update_note(note_id: str, note_update: NoteUpdate):
     note_key = f"note:{note_id}"
-    if not redis_client.exists(note_key):
-        raise HTTPException(status_code=404, detail="筆記不存在")
-    
-    note_data = redis_client.hgetall(note_key)
-    now = datetime.utcnow().isoformat()
-    
-    update_data = {}
-    if note_update.title is not None:
-        update_data["title"] = note_update.title
-    if note_update.content is not None:
-        update_data["content"] = note_update.content
-    update_data["updated_at"] = now
-    
-    redis_client.hset(note_key, mapping=update_data)
-    
-    # 更新本地數據
-    note_data.update(update_data)
-    return Note(**note_data)
+    # 1. 快取到 Redis
+    await redis_client.set(note_key, json.dumps(note_data))
+    # 2. 寫入 MongoDB
+    await notes_collection.insert_one(note_data)
+    return note_data
 
+
+#提供前端使用者取得所有筆記以顯示在列表中
 @app.get("/api/notes", response_model=List[Note])
 async def list_notes():
     notes = []
-    for key in redis_client.scan_iter("note:*"):
-        note_data = redis_client.hgetall(key)
-        notes.append(Note(**note_data))
-    return sorted(notes, key=lambda x: int(x.id))
+    keys = []
+    async for key in redis_client.scan_iter(match="note:*"):
+        keys.append(key)
 
-@app.get("/api/notes/{note_id}", response_model=Note)
+    if keys:
+        for key in keys:
+            raw = await redis_client.get(key)
+            if raw:
+                note = json.loads(raw)
+                notes.append(note)
+    else:
+        # 從 MongoDB fallback 
+        cursor = notes_collection.find({}, {"_id": 0})
+        async for note in cursor:
+            notes.append(note)
+            await redis_client.set(f"note:{note['id']}", json.dumps(note))
+
+    notes.sort(key=lambda n: datetime.fromisoformat(n["created_at"]), reverse=True)
+    return notes
+
+#提供前端使用者取得指定筆記
+@app.get("/api/notes/{note_id}")
 async def get_note(note_id: str):
-    note_data = redis_client.hgetall(f"note:{note_id}")
-    if not note_data:
-        raise HTTPException(status_code=404, detail="筆記不存在")
-    return Note(**note_data)
+    note_key = f"note:{note_id}"
+    data = await redis_client.get(note_key)
+
+    if data:
+        return json.loads(data)
+
+    # 若 Redis 沒有 → 查 MongoDB
+    note_data = await notes_collection.find_one({"id": note_id})
+    if note_data:
+        # 轉成 JSON-friendly 格式（處理 ObjectId）
+        note_data.pop("_id", None)
+        # 同步到 Redis 快取
+        await redis_client.set(note_key, json.dumps(note_data))
+        return note_data
+
+    return {"error": "Note not found"}
+
 
 @app.delete("/api/notes/{note_id}")
 async def delete_note(note_id: str):
-    if not redis_client.exists(f"note:{note_id}"):
+    note_key = f"note:{note_id}"
+    # 1. 刪除 Redis 快取（不管存不存在）
+    await r.delete(note_key)
+
+    # 2. 刪除 MongoDB 文件（主資料庫）
+    result = await notes_collection.delete_one({"id": note_id})
+    if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="筆記不存在")
-    redis_client.delete(f"note:{note_id}")
+
     return {"message": "筆記已刪除"}
