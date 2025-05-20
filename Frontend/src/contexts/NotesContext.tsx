@@ -31,9 +31,10 @@ export function NotesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadNotes();
     socketService.onNoteUpdate((data) => {
+      console.log('收到更新通知:', data);
       setNotes((prevNotes) =>
-        prevNotes.map((note) =>
-          note.id === data.id
+        prevNotes.map((note) =>//接收資料
+          note.id === data.id//backend 是 id
             ? { ...note, title: data.title, content: data.content }
             : note
         )

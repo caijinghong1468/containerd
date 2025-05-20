@@ -39,7 +39,7 @@ export const api = {
     return response.json();
   },
 
-  async updateNote(noteId: string, data: Partial<Note>): Promise<Note> {
+  async updateNote(noteId: string, data: Partial<Note>): Promise<Note> {// need PUT?
     const response = await fetch(`${API_URL}/notes/${noteId}`, {
       method: 'PUT',
       headers: {

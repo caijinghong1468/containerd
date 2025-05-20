@@ -45,7 +45,7 @@ export default function NotePage({ params }: { params: { id: string } }) {
     debounce(async (noteId: string, newTitle: string, newContent: string) => {
       try {
         setIsSaving(true);
-        await updateNote(noteId, { title: newTitle, content: newContent });
+        console.log('發送筆記更新:', { noteId, newTitle, newContent });
         socketService.updateNote(noteId, newContent, newTitle);
         toast({
           title: '已保存',
@@ -54,6 +54,7 @@ export default function NotePage({ params }: { params: { id: string } }) {
           position: 'bottom-right',
         });
       } catch (error) {
+        console.error('更新失敗:', error);
         toast({
           title: '保存失敗',
           description: '請稍後再試',
@@ -65,7 +66,7 @@ export default function NotePage({ params }: { params: { id: string } }) {
         setIsSaving(false);
       }
     }, 1000),
-    [updateNote, toast]
+    [toast]
   );
 
   useEffect(() => {
@@ -88,18 +89,31 @@ export default function NotePage({ params }: { params: { id: string } }) {
     };
 
     loadNote();
-    socketService.joinNote(params.id);
+    console.log('加入筆記房間:', params.id);
+    socketService.joinNote(params.id);// join note room
+
 
     socketService.onNoteUpdate((data) => {
-      if (data.note_id === params.id) {
+      console.log('收到筆記更新:', data);
+      if (data.id === params.id) {//backend 是 note_id
+        console.log('更新當前筆記:', data);
         setTitle(data.title);
         setContent(data.content);
+        // add toast to notify user?
+        toast({                  // 顯示提示訊息
+          title: '筆記已更新',
+          description: '其他使用者已更新筆記內容',
+          status: 'info',
+          duration: 2000,
+          position: 'bottom-right',
+        });
       }
     });
 
     return () => {
+      console.log('離開筆記房間:', params.id);
       socketService.leaveNote(params.id);
-      debouncedUpdate.cancel();
+      //debouncedUpdate.cancel();//?
     };
   }, [params.id, getNote, router, toast, debouncedUpdate]);
 
