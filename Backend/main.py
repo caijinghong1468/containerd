@@ -162,3 +162,42 @@ async def delete_note(note_id: str):
         raise HTTPException(status_code=404, detail="筆記不存在")
 
     return {"message": "筆記已刪除"}
+
+@app.put("/api/notes/{note_id}/title")
+async def update_note_title(note_id: str, title_update: dict):
+    try:
+        # 從 Redis 獲取筆記
+        note_key = f"note:{note_id}"
+        note_data = redis_client.get(note_key)
+        
+        if not note_data:
+            # 如果 Redis 中沒有，從 MongoDB 獲取
+            note = await notes_collection.find_one({"id": note_id}, {"_id": 0})
+            if not note:
+                raise HTTPException(status_code=404, detail="筆記不存在")
+            note_data = json.dumps(note)
+        
+        # 更新標題
+        note = json.loads(note_data)
+        note["title"] = title_update["title"]
+        note["updated_at"] = datetime.now().isoformat()
+        
+        # 更新 Redis
+        redis_client.set(note_key, json.dumps(note))
+        
+        # 更新 MongoDB
+        await notes_collection.update_one(
+            {"id": note_id},
+            {"$set": {"title": title_update["title"], "updated_at": note["updated_at"]}}
+        )
+        
+        # 發送 Socket.IO 事件
+        await sio.emit("note_update", {
+            "id": note_id,
+            "title": title_update["title"],
+            "content": note["content"]
+        })
+        
+        return note
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

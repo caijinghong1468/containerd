@@ -64,4 +64,21 @@ export const api = {
       throw new Error('刪除筆記失敗');
     }
   },
+
+  // 更新筆記標題
+  async updateNoteTitle(noteId: string, title: string): Promise<Note> {
+    const response = await fetch(`${API_URL}/notes/${noteId}/title`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title }),
+    });
+
+    if (!response.ok) {
+      throw new Error('更新筆記標題失敗');
+    }
+
+    return response.json();
+  },
 };

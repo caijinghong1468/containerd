@@ -16,6 +16,15 @@ import {
   VStack,
   HStack,
   useColorModeValue,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  Input,
+  FormControl,
+  FormLabel,
 } from '@chakra-ui/react';
 import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
 
@@ -23,6 +32,8 @@ export default function NotesPage() {
   const router = useRouter();
   const { notes, createNote, deleteNote, refreshNotes } = useNotes();
   const [isCreating, setIsCreating] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState('');
   const toast = useToast();
 
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -30,13 +41,10 @@ export default function NotesPage() {
 
   // 監聽 Socket.IO 更新
   useEffect(() => {
-    // 設置 Socket.IO 更新回調
     socketService.onNoteUpdate((data) => {
-      // 當收到筆記更新時，重新獲取筆記列表
       refreshNotes();
     });
 
-    // 組件卸載時清理
     return () => {
       socketService.offNoteUpdate();
     };
@@ -45,10 +53,14 @@ export default function NotesPage() {
   const handleCreateNote = async () => {
     try {
       setIsCreating(true);
-      const newNote = await createNote('新筆記');
+      const newNote = await createNote(newNoteTitle || '新筆記');
       
       // 加入筆記的 Socket.IO 房間
       socketService.joinNote(newNote.id);
+      
+      // 關閉彈窗並重置標題
+      setIsModalOpen(false);
+      setNewNoteTitle('');
       
       router.push(`/notes/${newNote.id}`);
     } catch (error) {
@@ -66,9 +78,7 @@ export default function NotesPage() {
 
   const handleDeleteNote = async (noteId: string) => {
     try {
-      // 離開筆記的 Socket.IO 房間
       socketService.leaveNote(noteId);
-      
       await deleteNote(noteId);
       toast({
         title: '筆記已刪除',
@@ -87,7 +97,6 @@ export default function NotesPage() {
   };
 
   const handleNoteClick = (noteId: string) => {
-    // 加入筆記的 Socket.IO 房間
     socketService.joinNote(noteId);
     router.push(`/notes/${noteId}`);
   };
@@ -99,7 +108,7 @@ export default function NotesPage() {
         <Button
           leftIcon={<AddIcon />}
           colorScheme="blue"
-          onClick={handleCreateNote}
+          onClick={() => setIsModalOpen(true)}
           isLoading={isCreating}
         >
           新增筆記
@@ -145,6 +154,41 @@ export default function NotesPage() {
           </Box>
         ))}
       </VStack>
+
+      {/* 新增筆記彈窗 */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>新增筆記</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <FormControl>
+              <FormLabel>筆記標題</FormLabel>
+              <Input
+                placeholder="請輸入筆記標題"
+                value={newNoteTitle}
+                onChange={(e) => setNewNoteTitle(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateNote();
+                  }
+                }}
+              />
+            </FormControl>
+            <Flex mt={4} justify="flex-end">
+              <Button
+                colorScheme="blue"
+                mr={3}
+                onClick={handleCreateNote}
+                isLoading={isCreating}
+              >
+                創建
+              </Button>
+              <Button onClick={() => setIsModalOpen(false)}>取消</Button>
+            </Flex>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </Container>
   );
 } 

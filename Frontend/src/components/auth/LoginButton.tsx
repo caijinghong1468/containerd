@@ -52,12 +52,19 @@ const LoginButton = () => {
 
   return (
     <Button
+      size="lg"
       colorScheme="blue"
       onClick={handleLogin}
-      size="lg"
-      width="200px"
+      px={8}
+      py={6}
+      fontSize="lg"
+      _hover={{
+        transform: 'translateY(-2px)',
+        boxShadow: 'lg',
+      }}
+      transition="all 0.2s"
     >
-      登入
+      開始使用
     </Button>
   );
 };
