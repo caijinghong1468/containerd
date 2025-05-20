@@ -11,25 +11,13 @@ interface NotesContextType {
   getNote: (id: string) => Promise<Note>;
   updateNote: (id: string, data: Partial<Note>) => Promise<Note>;
   deleteNote: (id: string) => Promise<void>;
+  refreshNotes: () => Promise<void>;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
 export function NotesProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([]);
-
-  useEffect(() => {
-    loadNotes();
-    socketService.onNoteUpdate((data) => {
-      setNotes((prevNotes) =>
-        prevNotes.map((note) =>
-          note.id === data.note_id
-            ? { ...note, title: data.title, content: data.content }
-            : note
-        )
-      );
-    });
-  }, []);
 
   const loadNotes = async () => {
     try {
@@ -39,6 +27,19 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       console.error('載入筆記失敗:', error);
     }
   };
+
+  useEffect(() => {
+    loadNotes();
+    socketService.onNoteUpdate((data) => {
+      setNotes((prevNotes) =>
+        prevNotes.map((note) =>
+          note.id === data.id
+            ? { ...note, title: data.title, content: data.content }
+            : note
+        )
+      );
+    });
+  }, []);
 
   const createNote = async (title: string) => {
     const newNote = await api.createNote(title);
@@ -71,6 +72,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         getNote,
         updateNote,
         deleteNote,
+        refreshNotes: loadNotes,
       }}
     >
       {children}

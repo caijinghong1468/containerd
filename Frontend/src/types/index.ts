@@ -7,6 +7,15 @@ export interface Note {
   updated_at: string;
 }
 
+export interface NoteCreate {
+  title: string;
+}
+
+export interface NoteUpdate {
+  title?: string;
+  content?: string;
+}
+
 // 資料夾的型別定義
 export interface Folder {
   id: string;

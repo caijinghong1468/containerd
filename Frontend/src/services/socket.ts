@@ -6,9 +6,11 @@ class SocketService {
   private socket: ReturnType<typeof socketIO> | null = null;
   private noteUpdateCallback: ((data: any) => void) | null = null;
 
-  connect() {
+  connect(userId: string) {
     if (!this.socket) {
-      this.socket = socketIO(SOCKET_URL);
+      this.socket = socketIO(SOCKET_URL, {
+        query: { userId }
+      });
     }
   }
 

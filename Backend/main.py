@@ -27,7 +27,7 @@ socket_app = socketio.ASGIApp(sio, app)
 # Redis 連接
 try:
     redis_client = redis.Redis(
-        host='redis',
+        host='redis',  # Docker 服務名稱
         port=6379,
         decode_responses=True
     )
@@ -36,7 +36,7 @@ except Exception as e:
     raise
 
 # MongoDB 連接
-mongo_client = AsyncIOMotorClient("mongodb://localhost:27017")
+mongo_client = AsyncIOMotorClient("mongodb://mongodb:27017")  # Docker 服務名稱
 db = mongo_client["note_db"]
 notes_collection = db["notes"]
 
@@ -52,13 +52,13 @@ async def disconnect(sid):
 @sio.event
 async def join(sid, data):
     room = data['note_id']
-    sio.enter_room(sid, room )
-    print(f"Client {sid} joined note {room }")
+    sio.enter_room(sid, room)
+    print(f"Client {sid} joined note {room}")
 
 @sio.event
 async def leave(sid, data):
     room = data['note_id']
-    sio.leave_room(sid, room )
+    sio.leave_room(sid, room)
     print(f"Client {sid} left note {room}")
 
 @sio.on("update_note")
@@ -79,7 +79,7 @@ async def update(sid, data):
         "updated_at": now
     }
     # Redis 覆蓋（Last Write Wins）
-    await redis_client.set(note_key, json.dumps(new_data))
+    redis_client.set(note_key, json.dumps(new_data))
     
     # 廣播更新
     await sio.emit('note_update', new_data, room=note_id)
@@ -98,10 +98,12 @@ async def create_note(note: NoteCreate):
     }
     note_key = f"note:{note_id}"
     # 1. 快取到 Redis
-    await redis_client.set(note_key, json.dumps(note_data))
+    redis_client.set(note_key, json.dumps(note_data))
     # 2. 寫入 MongoDB
-    await notes_collection.insert_one(note_data)
-    return note_data
+    result = await notes_collection.insert_one(note_data)
+    # 3. 從 MongoDB 讀取，確保返回正確的格式 (用投影（projection）排除 _id)
+    created_note = await notes_collection.find_one({"id": note_id}, {"_id": 0})
+    return created_note
 
 
 #提供前端使用者取得所有筆記以顯示在列表中
@@ -109,21 +111,22 @@ async def create_note(note: NoteCreate):
 async def list_notes():
     notes = []
     keys = []
-    async for key in redis_client.scan_iter(match="note:*"):
+    # 從 Redis 獲取所有筆記，Redis.py不能使用await
+    for key in redis_client.scan_iter(match="note:*"):
         keys.append(key)
 
     if keys:
         for key in keys:
-            raw = await redis_client.get(key)
+            raw = redis_client.get(key)
             if raw:
                 note = json.loads(raw)
                 notes.append(note)
     else:
         # 從 MongoDB fallback 
-        cursor = notes_collection.find({}, {"_id": 0})
+        cursor = notes_collection.find({}, {"_id": 0})  # 排除 _id
         async for note in cursor:
             notes.append(note)
-            await redis_client.set(f"note:{note['id']}", json.dumps(note))
+            redis_client.set(f"note:{note['id']}", json.dumps(note))
 
     notes.sort(key=lambda n: datetime.fromisoformat(n["created_at"]), reverse=True)
     return notes
@@ -132,30 +135,28 @@ async def list_notes():
 @app.get("/api/notes/{note_id}")
 async def get_note(note_id: str):
     note_key = f"note:{note_id}"
-    data = await redis_client.get(note_key)
+    data = redis_client.get(note_key)
 
     if data:
         return json.loads(data)
 
     # 若 Redis 沒有 → 查 MongoDB
-    note_data = await notes_collection.find_one({"id": note_id})
+    note_data = await notes_collection.find_one({"id": note_id}, {"_id": 0})  # 排除 _id
     if note_data:
-        # 轉成 JSON-friendly 格式（處理 ObjectId）
-        note_data.pop("_id", None)
-        # 同步到 Redis 快取
-        await redis_client.set(note_key, json.dumps(note_data))
+        # 同步到 Redis 快取，Redis.py不能使用await
+        redis_client.set(note_key, json.dumps(note_data))
         return note_data
 
-    return {"error": "Note not found"}
+    raise HTTPException(status_code=404, detail="筆記不存在")
 
 
 @app.delete("/api/notes/{note_id}")
 async def delete_note(note_id: str):
     note_key = f"note:{note_id}"
-    # 1. 刪除 Redis 快取（不管存不存在）
-    await r.delete(note_key)
+    # 1. 刪除 Redis 快取
+    redis_client.delete(note_key)
 
-    # 2. 刪除 MongoDB 文件（主資料庫）
+    # 2. 刪除 MongoDB 文件
     result = await notes_collection.delete_one({"id": note_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="筆記不存在")
