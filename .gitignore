@@ -175,3 +175,8 @@ cython_debug/
 
 .DS_Store
 node_modules/
+
+
+# === Next.js ===
+Frontend/.next
+Frontend/.next/

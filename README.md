@@ -9,6 +9,17 @@ containerd/
 ├── Frontend/          # 前端 (Next.js + React)
 ├── Backend/           # 後端 (FastAPI + Socket.IO)
 └── docker-compose.yaml # Docker 配置
+本地環境啟動（需要分別啟動前後端以及安裝MongoDB）
+資料庫設置 :
+1. 安裝MongoDB
+2. 安裝Redis
+前端設置 :
+1. 進入 Frontend 目錄
+2. 安裝依賴：npm install
+3. 啟動開發服務器：npm run dev
+後端設置 : 
+1. 進入 Backend 目錄
+2. 安裝依賴 : socket.io 
 ## Frontend
 Frontend/
 ├── src/

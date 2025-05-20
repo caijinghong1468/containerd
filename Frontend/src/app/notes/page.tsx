@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotes } from '@/contexts/NotesContext';
+import { socketService } from '@/services/socket';
 import {
   Box,
   Container,
@@ -20,17 +21,35 @@ import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
 
 export default function NotesPage() {
   const router = useRouter();
-  const { notes, createNote, deleteNote } = useNotes();
+  const { notes, createNote, deleteNote, refreshNotes } = useNotes();
   const [isCreating, setIsCreating] = useState(false);
   const toast = useToast();
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
 
+  // 監聽 Socket.IO 更新
+  useEffect(() => {
+    // 設置 Socket.IO 更新回調
+    socketService.onNoteUpdate((data) => {
+      // 當收到筆記更新時，重新獲取筆記列表
+      refreshNotes();
+    });
+
+    // 組件卸載時清理
+    return () => {
+      socketService.offNoteUpdate();
+    };
+  }, [refreshNotes]);
+
   const handleCreateNote = async () => {
     try {
       setIsCreating(true);
       const newNote = await createNote('新筆記');
+      
+      // 加入筆記的 Socket.IO 房間
+      socketService.joinNote(newNote.id);
+      
       router.push(`/notes/${newNote.id}`);
     } catch (error) {
       toast({
@@ -47,6 +66,9 @@ export default function NotesPage() {
 
   const handleDeleteNote = async (noteId: string) => {
     try {
+      // 離開筆記的 Socket.IO 房間
+      socketService.leaveNote(noteId);
+      
       await deleteNote(noteId);
       toast({
         title: '筆記已刪除',
@@ -62,6 +84,12 @@ export default function NotesPage() {
         isClosable: true,
       });
     }
+  };
+
+  const handleNoteClick = (noteId: string) => {
+    // 加入筆記的 Socket.IO 房間
+    socketService.joinNote(noteId);
+    router.push(`/notes/${noteId}`);
   };
 
   return (
@@ -90,7 +118,7 @@ export default function NotesPage() {
             borderColor={borderColor}
             _hover={{ boxShadow: 'md' }}
             cursor="pointer"
-            onClick={() => router.push(`/notes/${note.id}`)}
+            onClick={() => handleNoteClick(note.id)}
           >
             <Flex justify="space-between" align="center">
               <Box flex={1}>

@@ -10,10 +10,12 @@ services:
       - "8080:8080"
     depends_on:
       - redis
+      - mongodb
     restart: always
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - MONGODB_URI=mongodb://mongodb:27017
 
   frontend:
     build:
@@ -35,6 +37,19 @@ services:
     ports:
       - "6379:6379"
     restart: always
+    volumes:
+      - redis_data:/data
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
 
 volumes:
   frontend_node_modules:
+  redis_data:
+  mongodb_data:
