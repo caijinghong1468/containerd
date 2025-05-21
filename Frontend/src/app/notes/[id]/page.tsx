@@ -93,9 +93,9 @@ export default function NotePage({ params }: { params: { id: string } }) {
     socketService.joinNote(params.id);// join note room
 
 
-    socketService.onNoteUpdate((data) => {
+    socketService.onNoteUpdate((data) => {//這裡沒有發生更新事件
       console.log('收到筆記更新:', data);
-      if (data.id === params.id) {//backend 是 note_id
+      if (data.note_id === params.id) {//backend 是 note_id
         console.log('更新當前筆記:', data);
         setTitle(data.title);
         setContent(data.content);
@@ -113,6 +113,8 @@ export default function NotePage({ params }: { params: { id: string } }) {
     return () => {
       console.log('離開筆記房間:', params.id);
       socketService.leaveNote(params.id);
+      console.log('移除筆記更新監聽器');
+      socketService.offNoteUpdate();
       //debouncedUpdate.cancel();//?
     };
   }, [params.id, getNote, router, toast, debouncedUpdate]);

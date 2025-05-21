@@ -19,6 +19,11 @@ class SocketService {
       // 添加連接狀態監聽
     this.socket.on('connect', () => {
       console.log('Socket.IO 已連接');
+      // 重新註冊事件監聽器
+      if (this.noteUpdateCallback) {
+        console.log('重新註冊事件監聽器');
+        this.socket?.on('note_update', this.noteUpdateCallback);
+      }
     });
 
     this.socket.on('disconnect', () => {
@@ -54,20 +59,27 @@ class SocketService {
   updateNote(noteId: string, content: string, title: string) {
     if (this.socket) {
       console.log('發送筆記更新:', { noteId, content, title });
+      const now = new Date().toISOString();
       this.socket.emit('update_note', {// backend listen to update_note event
         note_id: noteId,
         content,
         title,
+        created_at: now  // add created_at
       });
     }
   }
 
   onNoteUpdate(callback: (data: any) => void) {
-    this.noteUpdateCallback = callback//?
+    // 先移除舊的監聽器
+    if (this.socket && this.noteUpdateCallback) {
+      console.log('移除舊的監聽器');
+      this.socket.off('note_update', this.noteUpdateCallback);
+    }
+    this.noteUpdateCallback = callback;
     if (this.socket) {
-      console.log('note_update 事件');
+      console.log('note_update event, backend listen to update_note event');
       this.socket.on('note_update', (data: any) => {
-        console.log('收到更新事件:', data);
+        console.log('收到更新事件:', data);//這裡沒有發生更新事件
         callback(data);
       });
     }
