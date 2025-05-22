@@ -15,19 +15,19 @@ const LoginButton = () => {
   const handleLogin = () => {
     try {
       const userId = uuidv4();
-      
+
       // 連接 Socket.IO
       socketService.connect(userId);
-      
+
       // 更新使用者狀態
       setUser({
         userId,
         isLoggedIn: true,
       });
-      
+
       // 在狀態更新後執行其他操作
       localStorage.setItem('userId', userId);
-      
+
       // 顯示成功訊息
       toast({
         title: '登入成功',
@@ -35,7 +35,7 @@ const LoginButton = () => {
         duration: 2000,
         isClosable: true,
       });
-      
+
       // 導航到筆記頁面
       router.push('/notes');
     } catch (error) {
