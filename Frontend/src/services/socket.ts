@@ -17,22 +17,22 @@ class SocketService {
         reconnectionDelay: 1000   // 添加重連延遲
       });
       // 添加連接狀態監聽
-    this.socket.on('connect', () => {
-      console.log('Socket.IO 已連接');
-      // 重新註冊事件監聽器
-      if (this.noteUpdateCallback) {
-        console.log('重新註冊事件監聽器');
-        this.socket?.on('note_update', this.noteUpdateCallback);
-      }
-    });
+      this.socket.on('connect', () => {
+        console.log('Socket.IO 已連接');
+        // 重新註冊事件監聽器
+        if (this.noteUpdateCallback) {
+          console.log('重新註冊事件監聽器');
+          this.socket?.on('note_update', this.noteUpdateCallback);
+        }
+      });
 
-    this.socket.on('disconnect', () => {
-      console.log('Socket.IO 已斷開連接');
-    });
+      this.socket.on('disconnect', () => {
+        console.log('Socket.IO 已斷開連接');
+      });
 
-    this.socket.on('connect_error', (error: any) => {
-      console.error('Socket.IO 連接錯誤:', error);
-    });
+      this.socket.on('connect_error', (error: any) => {
+        console.error('Socket.IO 連接錯誤:', error);
+      });
     }
   }
 
@@ -71,15 +71,18 @@ class SocketService {
 
   onNoteUpdate(callback: (data: any) => void) {
     // 先移除舊的監聽器
+    console.log("qqqqqqq")
     if (this.socket && this.noteUpdateCallback) {
-      console.log('移除舊的監聽器');
+      console.log('移除舊的123監聽器');
       this.socket.off('note_update', this.noteUpdateCallback);
     }
     this.noteUpdateCallback = callback;
+    console.log("ppppppppppppppppppppppppppppppppppppp")
     if (this.socket) {
       console.log('note_update event, backend listen to update_note event');
+      console.log("p2p2p2p2p")
       this.socket.on('note_update', (data: any) => {
-        console.log('收到更新事件:', data);//這裡沒有發生更新事件
+        console.log('收到更新事asasasa件:', data);//這裡沒有發生更新事件
         callback(data);
       });
     }

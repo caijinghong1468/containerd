@@ -21,8 +21,23 @@ export function NotesProvider({ children }: { children: ReactNode }) {
 
   const loadNotes = async () => {
     try {
-      const notesData = await api.getNotes();
-      setNotes(notesData);
+      // const notesData = await api.getNotes();
+      const notesData: Note = {
+        id: "123",
+        title: "test",
+        content: "ttt",
+        created_at: "123",
+        updated_at: "123",
+      }
+      const notesData2: Note = {
+        id: "1233123213",
+        title: "qqqqq",
+        content: "tttaaaaaa",
+        created_at: "123222",
+        updated_at: "122222",
+      }
+      console.log("dhwqygdiquywdgqhdyuwqgduyiqwguiqgdugqwuydguy")
+      setNotes([notesData, notesData2]);
     } catch (error) {
       console.error('載入筆記失敗:', error);
     }

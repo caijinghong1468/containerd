@@ -45,7 +45,7 @@ export default function NotePage({ params }: { params: { id: string } }) {
     debounce(async (noteId: string, newTitle: string, newContent: string) => {
       try {
         setIsSaving(true);
-        console.log('發送筆記更新:', { noteId, newTitle, newContent });
+        // console.log('發送筆記更新:', { noteId, newTitle, newContent });
         socketService.updateNote(noteId, newContent, newTitle);
         toast({
           title: '已保存',
@@ -72,10 +72,18 @@ export default function NotePage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const loadNote = async () => {
       try {
-        const noteData = await getNote(params.id);
-        setNote(noteData);
-        setTitle(noteData.title);
-        setContent(noteData.content);
+        console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        // const noteData = await getNote(params.id);
+        const notesData = {
+          id: "123",
+          title: "test",
+          content: "ttdasohduiashduiashdit",
+          created_at: "123",
+          updated_at: "123",
+        }
+        setNote(notesData);
+        setTitle(notesData.title);
+        setContent(notesData.content);
       } catch (error) {
         toast({
           title: '載入筆記失敗',
@@ -95,18 +103,19 @@ export default function NotePage({ params }: { params: { id: string } }) {
 
     socketService.onNoteUpdate((data) => {//這裡沒有發生更新事件
       console.log('收到筆記更新:', data);
-      if (data.note_id === params.id) {//backend 是 note_id
+      // if (data.note_id === params.id) {//backend 是 note_id
+      if (1 == 1) {
         console.log('更新當前筆記:', data);
         setTitle(data.title);
         setContent(data.content);
         // add toast to notify user?
-        toast({                  // 顯示提示訊息
-          title: '筆記已更新',
-          description: '其他使用者已更新筆記內容',
-          status: 'info',
-          duration: 2000,
-          position: 'bottom-right',
-        });
+        // toast({                  // 顯示提示訊息
+        //     title: '筆記已更新',
+        //     description: '其他使用者已更新筆記內容',
+        //     status: 'info',
+        //     duration: 2000,
+        //     position: 'bottom-right',
+        // });
       }
     });
 
@@ -117,7 +126,8 @@ export default function NotePage({ params }: { params: { id: string } }) {
       socketService.offNoteUpdate();
       //debouncedUpdate.cancel();//?
     };
-  }, [params.id, getNote, router, toast, debouncedUpdate]);
+    // }, [params.id, getNote, router, toast, debouncedUpdate]);
+  }, []);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
@@ -163,7 +173,7 @@ export default function NotePage({ params }: { params: { id: string } }) {
           mb={4}
           variant="unstyled"
         />
-        
+
         <Tabs index={activeTab} onChange={setActiveTab}>
           <TabList>
             <Tab>編輯</Tab>
