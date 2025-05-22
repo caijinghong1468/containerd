@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from model.note import NoteCreate, NoteUpdate, Note
+from model.note import NoteCreate, Note
 from motor.motor_asyncio import AsyncIOMotorClient
 import socketio
 import redis
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 app = FastAPI()
@@ -39,6 +39,13 @@ except Exception as e:
 mongo_client = AsyncIOMotorClient("mongodb://mongodb:27017")  # Docker 服務名稱
 db = mongo_client["note_db"]
 notes_collection = db["notes"]
+
+
+def safe_parse_iso_datetime(s):
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 # Socket.IO 事件處理
 @sio.event
@@ -100,7 +107,7 @@ async def create_note(note: NoteCreate):
     # 1. 快取到 Redis
     redis_client.set(note_key, json.dumps(note_data))
     # 2. 寫入 MongoDB
-    result = await notes_collection.insert_one(note_data)
+    await notes_collection.insert_one(note_data)
     # 3. 從 MongoDB 讀取，確保返回正確的格式 (用投影（projection）排除 _id)
     created_note = await notes_collection.find_one({"id": note_id}, {"_id": 0})
     return created_note
@@ -128,7 +135,7 @@ async def list_notes():
             notes.append(note)
             redis_client.set(f"note:{note['id']}", json.dumps(note))
 
-    notes.sort(key=lambda n: datetime.fromisoformat(n["created_at"]), reverse=True)
+    notes.sort(key=lambda n: safe_parse_iso_datetime(n["created_at"]), reverse=True)
     return notes
 
 #提供前端使用者取得指定筆記
