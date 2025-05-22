@@ -47,12 +47,12 @@ export default function NotePage({ params }: { params: { id: string } }) {
         setIsSaving(true);
         // console.log('發送筆記更新:', { noteId, newTitle, newContent });
         socketService.updateNote(noteId, newContent, newTitle);
-        toast({
-          title: '已保存',
-          status: 'success',
-          duration: 2000,
-          position: 'bottom-right',
-        });
+        // toast({
+        //   title: '已保存',
+        //   status: 'success',
+        //   duration: 2000,
+        //   position: 'bottom-right',
+        // });
       } catch (error) {
         console.error('更新失敗:', error);
         toast({
@@ -65,25 +65,17 @@ export default function NotePage({ params }: { params: { id: string } }) {
       } finally {
         setIsSaving(false);
       }
-    }, 1000),
+    }, 10),
     [toast]
   );
 
   useEffect(() => {
     const loadNote = async () => {
       try {
-        console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        // const noteData = await getNote(params.id);
-        const notesData = {
-          id: "123",
-          title: "test",
-          content: "ttdasohduiashduiashdit",
-          created_at: "123",
-          updated_at: "123",
-        }
-        setNote(notesData);
-        setTitle(notesData.title);
-        setContent(notesData.content);
+        const noteData = await getNote(params.id);
+        setNote(noteData);
+        setTitle(noteData.title);
+        setContent(noteData.content);
       } catch (error) {
         toast({
           title: '載入筆記失敗',

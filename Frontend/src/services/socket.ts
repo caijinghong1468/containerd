@@ -2,6 +2,7 @@ import { now } from 'lodash';
 import socketIO from 'socket.io-client';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080';
+// const SOCKET_URL = 'http://1.1.1.1:8080'; // for local build
 
 class SocketService {
   private socket: ReturnType<typeof socketIO> | null = null;
@@ -9,13 +10,17 @@ class SocketService {
 
   connect(userId: string) {
     if (!this.socket) {
+      console.log(SOCKET_URL)
       this.socket = socketIO(SOCKET_URL, {
+        path: "/ws/socket.io",
         query: { userId },
-        transports: ['websocket', 'polling'],
+        transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: 5,  // 添加重連嘗試次數
-        reconnectionDelay: 1000   // 添加重連延遲
+        reconnectionDelay: 1000,   // 添加重連延遲
       });
+
+      this.socket.connect();
       // 添加連接狀態監聽
       this.socket.on('connect', () => {
         console.log('Socket.IO 已連接');
@@ -71,18 +76,15 @@ class SocketService {
 
   onNoteUpdate(callback: (data: any) => void) {
     // 先移除舊的監聽器
-    console.log("qqqqqqq")
     if (this.socket && this.noteUpdateCallback) {
-      console.log('移除舊的123監聽器');
+      console.log('移除舊的監聽器');
       this.socket.off('note_update', this.noteUpdateCallback);
     }
     this.noteUpdateCallback = callback;
-    console.log("ppppppppppppppppppppppppppppppppppppp")
     if (this.socket) {
       console.log('note_update event, backend listen to update_note event');
-      console.log("p2p2p2p2p")
       this.socket.on('note_update', (data: any) => {
-        console.log('收到更新事asasasa件:', data);//這裡沒有發生更新事件
+        console.log('收到更新事件:', data);//這裡沒有發生更新事件
         callback(data);
       });
     }

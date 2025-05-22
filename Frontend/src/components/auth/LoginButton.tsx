@@ -17,10 +17,7 @@ const LoginButton = () => {
       const userId = uuidv4();
 
       // 連接 Socket.IO
-
-      console.log("123123123")
       socketService.connect(userId);
-      console.log("3231312321")
 
       // 更新使用者狀態
       setUser({
