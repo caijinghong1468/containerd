@@ -1,19 +1,23 @@
 import { now } from 'lodash';
 import socketIO from 'socket.io-client';
+import { v4 as uuidv4 } from 'uuid';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080';
-// const SOCKET_URL = 'http://1.1.1.1:8080'; // for local build
+// const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080';
+const SOCKET_URL = 'http://140.119.164.16:8080'; // for local build
 
 class SocketService {
   private socket: ReturnType<typeof socketIO> | null = null;
   private noteUpdateCallback: ((data: any) => void) | null = null;
 
-  connect(userId: string) {
+  readonly userId = uuidv4();
+
+  // connect(userId: string) {
+  connect() {
     if (!this.socket) {
       console.log(SOCKET_URL)
       this.socket = socketIO(SOCKET_URL, {
         path: "/ws/socket.io",
-        query: { userId },
+        query: { userId: this.userId },
         transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: 5,  // 添加重連嘗試次數

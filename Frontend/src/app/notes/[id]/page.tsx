@@ -70,6 +70,7 @@ export default function NotePage({ params }: { params: { id: string } }) {
   );
 
   useEffect(() => {
+    socketService.connect();
     const loadNote = async () => {
       try {
         const noteData = await getNote(params.id);

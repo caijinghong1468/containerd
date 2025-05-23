@@ -14,19 +14,20 @@ const LoginButton = () => {
   // 處理登入邏輯
   const handleLogin = () => {
     try {
-      const userId = uuidv4();
+      // const userId = uuidv4();
 
       // 連接 Socket.IO
-      socketService.connect(userId);
+      // socketService.connect(userId);
+      socketService.connect();
 
       // 更新使用者狀態
       setUser({
-        userId,
+        userId: socketService.userId,
         isLoggedIn: true,
       });
 
       // 在狀態更新後執行其他操作
-      localStorage.setItem('userId', userId);
+      localStorage.setItem('userId', socketService.userId);
 
       // 顯示成功訊息
       toast({

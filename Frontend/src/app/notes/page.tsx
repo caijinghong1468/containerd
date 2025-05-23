@@ -41,7 +41,9 @@ export default function NotesPage() {
 
   // 監聽 Socket.IO 更新
   useEffect(() => {
+    socketService.connect();
     socketService.onNoteUpdate((data) => {
+      console.log("123")
       refreshNotes();
     });
 
