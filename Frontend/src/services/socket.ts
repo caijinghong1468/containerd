@@ -1,38 +1,47 @@
 import { now } from 'lodash';
 import socketIO from 'socket.io-client';
+import { v4 as uuidv4 } from 'uuid';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080';
+// const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080';
+const SOCKET_URL = 'http://140.119.164.16:8080'; // for local build
 
 class SocketService {
   private socket: ReturnType<typeof socketIO> | null = null;
   private noteUpdateCallback: ((data: any) => void) | null = null;
 
-  connect(userId: string) {
+  readonly userId = uuidv4();
+
+  // connect(userId: string) {
+  connect() {
     if (!this.socket) {
+      console.log(SOCKET_URL)
       this.socket = socketIO(SOCKET_URL, {
-        query: { userId },
-        transports: ['websocket', 'polling'],
+        path: "/ws/socket.io",
+        query: { userId: this.userId },
+        transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: 5,  // 添加重連嘗試次數
-        reconnectionDelay: 1000   // 添加重連延遲
+        reconnectionDelay: 1000,   // 添加重連延遲
       });
+
+      this.socket.connect();
       // 添加連接狀態監聽
-    this.socket.on('connect', () => {
-      console.log('Socket.IO 已連接');
-      // 重新註冊事件監聽器
-      if (this.noteUpdateCallback) {
-        console.log('重新註冊事件監聽器');
-        this.socket?.on('note_update', this.noteUpdateCallback);
-      }
-    });
+      this.socket.on('connect', () => {
+        console.log('Socket.IO 已連接');
+        // 重新註冊事件監聽器
+        if (this.noteUpdateCallback) {
+          console.log('重新註冊事件監聽器');
+          this.socket?.on('note_update', this.noteUpdateCallback);
+        }
+      });
 
-    this.socket.on('disconnect', () => {
-      console.log('Socket.IO 已斷開連接');
-    });
+      this.socket.on('disconnect', () => {
+        console.log('Socket.IO 已斷開連接');
+      });
 
-    this.socket.on('connect_error', (error: any) => {
-      console.error('Socket.IO 連接錯誤:', error);
-    });
+      this.socket.on('connect_error', (error: any) => {
+        console.error('Socket.IO 連接錯誤:', error);
+      });
     }
   }
 

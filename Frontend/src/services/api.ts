@@ -1,6 +1,7 @@
 import { Note } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_URL = 'http://140.119.164.16:8080/api'; // for local build
 
 export const api = {
   async createNote(title: string): Promise<Note> {

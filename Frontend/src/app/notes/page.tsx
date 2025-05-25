@@ -41,7 +41,9 @@ export default function NotesPage() {
 
   // 監聽 Socket.IO 更新
   useEffect(() => {
+    socketService.connect();
     socketService.onNoteUpdate((data) => {
+      console.log("123")
       refreshNotes();
     });
 
@@ -54,14 +56,14 @@ export default function NotesPage() {
     try {
       setIsCreating(true);
       const newNote = await createNote(newNoteTitle || '新筆記');
-      
+
       // 加入筆記的 Socket.IO 房間
       socketService.joinNote(newNote.id);
-      
+
       // 關閉彈窗並重置標題
       setIsModalOpen(false);
       setNewNoteTitle('');
-      
+
       router.push(`/notes/${newNote.id}`);
     } catch (error) {
       toast({
