@@ -58,6 +58,17 @@
         - redis
         - mongodb
       entrypoint: [ "k6", "run", "/scripts/pressure_test.js" ]
+    k6_socket_test:
+      image: grafana/k6:latest
+      container_name: k6_socket_test
+      volumes:
+        - ./k6:/scripts          
+      depends_on:
+        - k6_pressure_test
+        - backend
+        - redis
+        - mongodb
+      entrypoint: [ "k6", "run", "/scripts/socket_test.js" ]
       
   volumes:
     frontend_node_modules:
