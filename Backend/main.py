@@ -9,7 +9,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import List
 
+# 初始化 Socket.IO
 app = FastAPI()
+sio = socketio.AsyncServer(
+    async_mode='asgi',
+    cors_allowed_origins='*',
+    logger=True,
+    engineio_logger=True
+)
 
 # 配置 CORS
 app.add_middleware(
@@ -19,15 +26,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+sio_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app, socketio_path="/ws/socket.io")
 
-# 初始化 Socket.IO
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
-socket_app = socketio.ASGIApp(sio, app)
-
+print("ws mt")
 # Redis 連接
 try:
     redis_client = redis.Redis(
         host='redis',  # Docker 服務名稱
+        # host='localhost',  # for local build
         port=6379,
         decode_responses=True
     )
@@ -37,6 +43,7 @@ except Exception as e:
 
 # MongoDB 連接
 mongo_client = AsyncIOMotorClient("mongodb://mongodb:27017")  # Docker 服務名稱
+# mongo_client = AsyncIOMotorClient("mongodb://admin:user@1.1.1.1:27017")  # for local build
 db = mongo_client["note_db"]
 notes_collection = db["notes"]
 
@@ -59,13 +66,13 @@ async def disconnect(sid):
 @sio.event
 async def join(sid, data):
     room = data['note_id']
-    sio.enter_room(sid, room)
+    await sio.enter_room(sid, room)
     print(f"Client {sid} joined note {room}")
 
 @sio.event
 async def leave(sid, data):
     room = data['note_id']
-    sio.leave_room(sid, room)
+    await sio.leave_room(sid, room)
     print(f"Client {sid} left note {room}")
 
 @sio.on("update_note")
@@ -178,6 +185,7 @@ async def update_note_title(note_id: str, title_update: dict):
         note_data = redis_client.get(note_key)
         
         if not note_data:
+        # if True:
             # 如果 Redis 中沒有，從 MongoDB 獲取
             note = await notes_collection.find_one({"id": note_id}, {"_id": 0})
             if not note:
