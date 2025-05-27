@@ -1,6 +1,8 @@
 import { Note } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_URL = 'http://localhost:8080/api';
+console.log(process.env.NEXT_PUBLIC_API_URL)
 // const API_URL = 'http://1.1.1.1:8080/api'; // for local build
 
 export const api = {
