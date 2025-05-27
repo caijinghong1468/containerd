@@ -2,8 +2,8 @@ import { now } from 'lodash';
 import socketIO from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 
-// const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080';
-const SOCKET_URL = 'http://140.119.164.16:8080'; // for local build
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080/ws';
+// const SOCKET_URL = 'http://1.1.1.1:8080'; // for local build
 
 class SocketService {
   private socket: ReturnType<typeof socketIO> | null = null;
