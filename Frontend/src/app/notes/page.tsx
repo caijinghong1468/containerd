@@ -118,7 +118,9 @@ export default function NotesPage() {
       </Flex>
 
       <VStack spacing={4} align="stretch">
-        {notes.map((note) => (
+        {[...notes]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .map((note) => (
           <Box
             key={note.id}
             p={4}
