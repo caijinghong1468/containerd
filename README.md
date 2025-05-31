@@ -52,6 +52,5 @@ A collaborative note-taking project that enables real-time synchronization among
 - **`@app.delete("/api/notes/{note_id}")`**: 刪除指定的筆記
 ### 後端與資料庫如何協作？
 ```
-當需要資料時，後端會先看看redis有沒有資料，如果有就直接使用，反之，去Database裡抓資料，並發給後端與儲存到redis裡宮下一次使用。
-這樣做的目的在於，redis是把資料存在Ram裡面，存取叫mongodb的disk快，因此，在注重速度的筆記同步中，我們選擇在DB與後端之間加入redis，以提升效能。
+在資料處理的協作上，後端架構引入了Redis作為MongoDB與後端服務之間的快取層，當後端有資料需求時，會優先查詢Redis是否已經快取這筆資料。如果Redis已有相關資料，則直接使用快取的資料，省去與MongoDB交互的時間；若Redis中無法找到資料，後端會從MongoDB中抓取資料，接著再將資料回傳給前端並同步存入Redis快取，以便下次使用。之所以採用這種架構設計，是因為Redis將資料儲存在記憶體（RAM）中，資料存取速度遠比MongoDB存取硬碟（disk）要快速許多。在強調即時性與效能的筆記同步場景中，透過這種方式將Redis置於資料庫與後端之間，可有效提高資料處理效率與整體使用體驗。
 ```
