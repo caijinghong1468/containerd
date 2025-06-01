@@ -1,7 +1,7 @@
 # **SyncNote**
 A collaborative note-taking project that enables real-time synchronization among multiple users.
 ## System Architecture  
-![系統架構](./images/system.png)
+![系統架構](./images/system2.png)
 
 ## Main Feature
 ```
